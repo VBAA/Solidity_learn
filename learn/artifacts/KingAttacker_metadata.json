@@ -1,0 +1,68 @@
+{
+	"compiler": {
+		"version": "0.6.12+commit.27d51765"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "payable",
+				"type": "constructor"
+			},
+			{
+				"stateMutability": "payable",
+				"type": "fallback"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address payable",
+						"name": "addr",
+						"type": "address"
+					}
+				],
+				"name": "attack",
+				"outputs": [],
+				"stateMutability": "payable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"learn/king.sol": "KingAttacker"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"learn/king.sol": {
+			"keccak256": "0x4627b2009b86e127a4d990bb6431a2bdc9363f31d83c7ad7c376e200f13bd5b6",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://21ba53c7cf974e607faccf1f215469b79503256409bb5e6a1a6b6bf9a9933cc0",
+				"dweb:/ipfs/QmXdGGDcw4MrpgtBYo5rHNXpv2go44BXA7tndHDtTfmHX6"
+			]
+		}
+	},
+	"version": 1
+}
