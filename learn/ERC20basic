@@ -1,0 +1,245 @@
+/*
+SPDX-License-Identifier: Apache-2.0
+*/
+pragma solidity >0.5.11;
+
+contract VitialToken {
+
+    string public name = "VitalBasicToken";      //  token name
+    string public symbol = "VBT";           //  token symbol
+    uint256 public decimals = 6;            //  token digit
+    uint256 public totalSupply = 0;
+    bool public stopped = false;
+    uint256 constant valueFounder = 10000000000;
+    address owner = address(0x0);
+
+    uint256 public sellPrice;
+    uint256 public buyPrice;
+
+    // token price for ETH
+    uint256 public tokensPerEth = 10000;
+
+    mapping (address => uint256) public balanceOf;
+    mapping (address => mapping (address => uint256)) public allowance;
+    mapping (address => bool) public frozenAccount;
+
+   constructor (address _addressFounder) {
+        owner = msg.sender;
+        totalSupply = valueFounder;
+        balanceOf[_addressFounder] = valueFounder;
+        
+        emit Transfer(address(0x0), _addressFounder, valueFounder);
+    }
+    
+    modifier isOwner {
+        assert(owner == msg.sender);
+        _;
+    }
+
+    modifier isRunning {
+        assert (!stopped);
+        _;
+    }
+
+    modifier validAddress {
+        assert(address(0x0) != msg.sender);
+        _;
+    }
+
+    function transferOwnership(address newOwner) isOwner public {
+        owner = newOwner;
+    }
+    
+
+    function transfer(address _to, uint256 _value) public isRunning validAddress returns (bool success) {
+
+        // 检验是否为冻结账户 
+        require(!frozenAccount[owner]);
+        require(!frozenAccount[_to]);
+
+        // 检验接收者地址是否合法
+        require(_to != address(0));
+
+        // 检验发送者账户余额是否足够
+        require(balanceOf[msg.sender] >= _value);
+
+        // 检验是否会发生溢出
+        require(balanceOf[_to] + _value >= balanceOf[_to]);
+
+        // 扣除发送者账户余额
+        balanceOf[msg.sender] -= _value;
+
+        // 增加接收者账户余额
+        balanceOf[_to] += _value;
+
+        // 触发相应的事件
+        emit Transfer(msg.sender, _to, _value);
+
+        return true;
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) public isRunning validAddress returns (bool success) {
+
+         // 检验是否为冻结账户 
+        require(!frozenAccount[_from]);
+        require(!frozenAccount[_to]);
+
+         // 检验地址是否合法
+        require(_to != address(0) && _from != address(0));
+
+        // 检验发送者账户余额是否足够
+        require(balanceOf[_from] >= _value);
+
+        // 检验操作的金额是否是被允许的
+        require(balanceOf[_to] + _value >= balanceOf[_to]);
+
+         // 检验是否会发生溢出
+        require(allowance[_from][msg.sender] >= _value);
+
+
+        balanceOf[_to] += _value;
+        balanceOf[_from] -= _value;
+        allowance[_from][msg.sender] -= _value;
+        emit Transfer(_from, _to, _value);
+        return true;
+    }
+
+
+    function approve(address _spender, uint256 _value) public isRunning validAddress returns (bool success) {
+        require(_value == 0 || allowance[msg.sender][_spender] == 0);
+        allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+
+     //代币增发
+    function mintToken(address _target, uint256 _mintedAmount) isOwner public {
+        balanceOf[_target] += _mintedAmount;
+        totalSupply += _mintedAmount;
+        emit Transfer(address(0), address(this), _mintedAmount);
+        emit Transfer(address(this), _target, _mintedAmount);
+    }
+
+     //管理者代币销毁
+    function burn(uint256 _value) isOwner public returns (bool success){
+        require(balanceOf[msg.sender] >= _value);
+        balanceOf[msg.sender] -= _value;
+        balanceOf[address(0x0)] += _value;
+        emit Transfer(msg.sender, address(0x0), _value);
+        return true;
+    }
+
+    //用户代币销毁 
+    function burnFrom(address _from, uint256 _value) isOwner public returns (bool success) {
+        require(balanceOf[_from] >= _value);
+        require(_value <= allowance[_from][owner]);
+        balanceOf[_from] -= _value;
+        allowance[_from][owner] -= _value;
+        totalSupply -= _value;
+        emit Burn(_from, _value);
+        return true;
+    }
+    
+    //冻结账户代币 
+    function freezeAccount(address _target, bool freeze) isOwner public {
+        frozenAccount[_target] = freeze;
+        emit FrozenFunds(_target, freeze);
+    }
+
+    //空投代币 
+    function AirDrop(address[] memory _recipients, uint _values) isOwner public returns (bool) {
+        require(_recipients.length > 0);
+
+        for(uint j = 0; j < _recipients.length; j++){
+            emit Transfer(owner, _recipients[j], _values);
+        }
+
+        return true;
+    }
+
+    
+    function stop() public isOwner {
+        stopped = true;
+    }
+
+    function start() public isOwner {
+        stopped = false;
+    }
+
+    function setName(string memory _name) public isOwner {
+        name = _name;
+    }
+
+    function setPrices(uint256 _newSellPrice, uint256 _newBuyPrice) isOwner public {
+        sellPrice = _newSellPrice;
+        buyPrice = _newBuyPrice;
+    }
+    
+    //代币兑换 买 
+    function buy() payable public returns (bool) {
+        
+        // emit Transfer(address(this), owner, amount);
+
+
+    // 发送的数量必须大于0
+    require(msg.value > 0, "Send ETH to buy some tokens");
+
+    // 计算后的代币买入数量
+    uint256 amountToBuy = msg.value * tokensPerEth;
+
+    // 检查合约中的代币是否足够
+    // address(this) 合约实例的地址
+    // msg.sender 合约调用的地址
+    // 以上两个概念要区分开,参考： https://docs.soliditylang.org/en/develop/units-and-global-variables.html
+    uint256 vendorBalance = balanceOf[address(this)];
+    require(vendorBalance >= amountToBuy, "Vendor contract has not enough tokens in its balance");
+
+    // // 向合约的调用者发送代币 
+    // bool sent = transfer(msg.sender, amount);
+    // require(sent, "Failed to transfer token to user");
+
+    // 注册事件
+    emit Transfer(owner,address(this),amountToBuy);
+
+    return true;
+
+    }
+
+    //代币兑换 卖 
+    function sell(uint256 amountToSell) public {
+        // require(address(this).balance >= amount * sellPrice);
+        // emit Transfer(owner, address(this), amount);
+        // owner.transfer(amount * sellPrice);
+
+// 检查数量是否大于0
+    require(amountToSell > 0, "Specify an amount of token greater than zero");
+
+    // 检测调用合约者的代币是否足够
+    uint256 userBalance = balanceOf[msg.sender];
+    require(userBalance >= amountToSell, "Your balance is lower than the amount of tokens you want to sell");
+
+    // 检查该合约中的ETH余额是否足够
+    uint256 amountOfETHToTransfer = amountToSell * sellPrice;
+    uint256 ownerETHBalance = address(this).balance;
+    require(ownerETHBalance >= amountOfETHToTransfer, "Vendor has not enough funds to accept the sell request");
+
+    // 从合约调用者向合约发送代币
+    (bool sent) = transferFrom(msg.sender, address(this), amountToSell);
+    require(sent, "Failed to transfer tokens from user to vendor");
+
+    // 向合约调用者发送指定的 BNB
+    (sent,) = msg.sender.call{value: amountOfETHToTransfer}("");
+    require(sent, "Failed to send ETH to the user");
+
+    // 注册事件
+    emit Transfer(msg.sender,owner,amountToSell);
+
+
+    }
+
+
+    event FrozenFunds(address target, bool frozen);
+    event Burn(address indexed from, uint256 value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+}
